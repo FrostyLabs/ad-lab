@@ -12,9 +12,9 @@
 # See resolved.conf(5) for details
 
 [Resolve]
-DNS="{{ dc_ip }}"
-FallbackDNS=8.8.8.8
-Domains=CYBERLOOP.LOCAL
+DNS={{ dc_ip }}
+FallbackDNS={{ dns_forwarders[0] }}
+Domains={{ domain }}
 #LLMNR=no
 #MulticastDNS=no
 #DNSSEC=no

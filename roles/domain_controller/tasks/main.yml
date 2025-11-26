@@ -1,16 +1,20 @@
-- name: Ensure chocolatey is installed
+- name: "[{{ dc_hostname }}] Install Chocolatey"
   win_chocolatey:
-    name:
-    - chocolatey
-    - chocolatey-core.extension
+    name: chocolatey
+    version: "{{ chocolatey_version }}"
     state: present
 
-- name: disable enhanced exit codes
+- name: "[{{ dc_hostname }}] Install Chocolatey core extension"
+  win_chocolatey:
+    name: chocolatey-core.extension
+    state: present
+
+- name: "[{{ dc_hostname }}] Disable Chocolatey enhanced exit codes"
   win_chocolatey_feature:
     name: useEnhancedExitCodes
     state: disabled
 
-- name: Install multiple packages sequentially
+- name: "[{{ dc_hostname }}] Install packages"
   win_chocolatey:
     name: '{{ item }}'
     state: present
@@ -20,140 +24,108 @@
   - python
   - git
   - 7zip
-  - sysinternals
   - wget
   - pstools
 
-- name: Change the hostname to domain-controller
+- name: "[{{ dc_hostname }}] Install Sysinternals"
+  win_chocolatey:
+    name: sysinternals
+    state: present
+    ignore_checksums: yes
+
+- name: "[{{ dc_hostname }}] Set hostname"
   win_hostname:
-    name: domain-controller
+    name: "{{ dc_hostname }}"
   register: win_hostname
 
-- name: Reboot
+- name: "[{{ dc_hostname }}] Reboot after hostname change"
   win_reboot:
   when: win_hostname.reboot_required
   
-- name: Ensure that Administrator is present with a valid password
+- name: "[{{ dc_hostname }}] Configure Administrator account"
   win_user:
-    name: Administrator
-    password: StrongPass123!
+    name: "{{ domain_admin_user }}"
+    password: "{{ Administrator_pass }}"
     password_never_expires: yes
     state: present
   ignore_errors: yes
 
-- name: Ensure that cyberloop.local domain exixts
-  win_domain:
-    dns_domain_name: cyberloop.local
-    safe_mode_password: StrongPass123!
+- name: "[{{ dc_hostname }}] Create AD domain {{ domain }}"
+  microsoft.ad.domain:
+    dns_domain_name: "{{ domain }}"
+    safe_mode_password: "{{ safe_mode_password }}"
   register: check_domain
 
-- name: Reboot to complete cyberloop.local domain creation
+- name: "[{{ dc_hostname }}] Reboot after domain creation"
   win_reboot:
   when: check_domain.changed
 
-- name: Ensure the server is a domain controller
-  win_domain_controller:
-    dns_domain_name: cyberloop.local
-    domain_admin_user: Administrator@cyberloop.local
-    domain_admin_password: StrongPass123!
-    safe_mode_password: StrongPass123!
+- name: "[{{ dc_hostname }}] Promote to domain controller"
+  microsoft.ad.domain_controller:
+    dns_domain_name: "{{ domain }}"
+    domain_admin_user: "{{ domain_admin_user_fqn }}"
+    domain_admin_password: "{{ Administrator_pass }}"
+    safe_mode_password: "{{ safe_mode_password }}"
     state: domain_controller
-    log_path: C:\ansible_win_domain_controller.txt
+    domain_log_path: "{{ win_domain_log_path }}"
   register: check_domain_controller
 
-- name: Reboot to complete domain controller setup
+- name: "[{{ dc_hostname }}] Reboot after DC promotion"
   win_reboot:
   when: check_domain_controller.changed
 
-- name: Check for xDnsServer Powershell module
-  win_psmodule:
-    name: xDnsServer
-    state: present
+- name: "[{{ dc_hostname }}] Install xDnsServer module"
+  win_shell: |
+    if (!(Get-Module -ListAvailable -Name xDnsServer)) {
+      Install-Module -Name xDnsServer -Force -SkipPublisherCheck
+    }
+  args:
+    executable: powershell.exe
 
-- name: Configure DNS Forwarders
+- name: "[{{ dc_hostname }}] Configure DNS forwarders"
   win_dsc:
     resource_name: xDnsServerSetting
-    Name: DNSServerProperties
+    DnsServer: localhost
     NoRecursion: false
-    Forwarders:
-      - "8.8.8.8"
-      - "8.8.4.4"
+    Forwarders: "{{ dns_forwarders }}"
 
-- name: Ensure that admin@cyberloop.local is present as Domain Admin
-  win_domain_user:
-    name: admin
-    password: StrongPass123!
+- name: "[{{ dc_hostname }}] Create AD user {{ admin_user }}"
+  microsoft.ad.user:
+    name: "{{ admin_user }}"
+    password: "{{ admin_pass }}"
     password_never_expires: yes
     state: present
-    path: cn=Users,dc=CYBERLOOP,dc=local
+    path: "{{ users_ou }}"
     groups:
-      - Domain Admins
+      add:
+        - Domain Admins
 
-- name: Ensure that bob@cyberloop.local is present in OU cn=Users,dc=CYBERLOOP,dc=local
-  win_domain_user:
-    name: bob
-    password: StrongPass123!
+- name: "[{{ dc_hostname }}] Create AD user {{ bob_user }}"
+  microsoft.ad.user:
+    name: "{{ bob_user }}"
+    password: "{{ bob_pass }}"
     password_never_expires: yes
     state: present
-    path: cn=Users,dc=CYBERLOOP,dc=local
+    path: "{{ users_ou }}"
     groups:
-      - Users
+      add:
+        - Users
 
-- name: Ensure that alice@cyberloop.local is present in OU cn=Users,dc=CYBERLOOP,dc=local
-  win_domain_user:
-    name: alice
-    password: StrongPass123!
+- name: "[{{ dc_hostname }}] Create AD user {{ alice_user }}"
+  microsoft.ad.user:
+    name: "{{ alice_user }}"
+    password: "{{ alice_pass }}"
     password_never_expires: yes
     state: present
-    path: cn=Users,dc=CYBERLOOP,dc=local
+    path: "{{ users_ou }}"
     groups:
-      - Users
+      add:
+        - Users
 
-- name: Create AllTeams group
-  win_domain_group:
-    name: allTeams
+- name: "[{{ dc_hostname }}] Create AD groups"
+  microsoft.ad.group:
+    name: "{{ item }}"
     scope: global
-    path: DC=cyberloop,DC=local
+    path: "{{ base_ou }}"
     state: present
-
-- name: Create DBAOracle
-  win_domain_group:
-    name: DBAOracle
-    scope: global
-    path: DC=cyberloop,DC=local
-    state: present
-
-- name: Create DBASQLServer
-  win_domain_group:
-    name: DBASQLServer
-    scope: global
-    path: DC=cyberloop,DC=local
-    state: present
-
-- name: Create DBAMongo group
-  win_domain_group:
-    name: DBAMongo
-    scope: global
-    path: DC=cyberloop,DC=local
-    state: present
-
-- name: Create DBARedis group
-  win_domain_group:
-    name: DBARedis
-    scope: global
-    path: DC=cyberloop,DC=local
-    state: present
-
-- name: Create DBAEnterprise Group ...
-  win_domain_group:
-    name: DBAEnterprise
-    scope: global
-    path: DC=cyberloop,DC=local
-    state: present
-
-- name: Create a Test Group ...
-  win_domain_group:
-    name: JustATestDemo
-    scope: global
-    path: DC=cyberloop,DC=local
-    state: present
+  loop: "{{ ad_groups }}"

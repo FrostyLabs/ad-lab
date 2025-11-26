@@ -1,0 +1,46 @@
+---
+- name: frostylabs.local Workstation configuration
+  hosts: win_client01
+  roles:
+    - commonwkstn
+
+  tasks:
+    - name: "[{{ client_hostname }}] Configure DNS client"
+      win_dns_client:
+        adapter_names: '*'
+        ipv4_addresses:
+          - "{{ dc_ip }}"
+        log_path: "{{ win_dns_log_path }}"
+
+    - name: "[{{ client_hostname }}] Create public share directory"
+      win_file:
+        path: "{{ win_shares_path }}"
+        state: directory
+
+    - name: "[{{ client_hostname }}] Create public share"
+      win_share:
+        name: public
+        description: Basic RW share for all domain users
+        path: "{{ win_shares_path }}"
+        list: yes
+        full: Administrators
+        change: Users
+
+    - name: "[{{ client_hostname }}] Join domain {{ domain }}"
+      microsoft.ad.membership:
+        dns_domain_name: "{{ domain }}"
+        domain_admin_user: "{{ domain_admin_user_fqn }}"
+        domain_admin_password: "{{ Administrator_pass }}"
+        state: domain
+      register: domain_state
+
+    - name: "[{{ client_hostname }}] Reboot after domain join"
+      win_reboot:
+      when: domain_state.reboot_required
+
+    - name: "[{{ client_hostname }}] Add {{ bob_user }} to local Administrators"
+      win_group_membership:
+        name: Administrators
+        Members:
+          - "{{ bob_user }}@{{ domain_netbios }}.local"
+        state: present

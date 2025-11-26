@@ -1,0 +1,71 @@
+---
+# Global variables for the entire lab environment
+
+# Domain configuration
+domain: frostylabs.local
+domain_netbios: FROSTYLABS
+domain_dn: dc=frostylabs,dc=local
+domain_dn_upper: dc=FROSTYLABS,dc=local
+
+# IP addresses referenced by multiple hosts
+dc_ip: 192.168.139.10
+srv01_ip: 192.168.139.11
+srv02_ip: 192.168.139.12
+client_ip: 192.168.139.13
+linux_srv01_ip: 192.168.139.14
+
+# DNS Configuration
+dns_forwarders:
+  - 8.8.8.8
+  - 8.8.4.4
+
+# Passwords and secrets for the lab environment
+# NOTE: In production, encrypt this file using: ansible-vault encrypt group_vars/all.yml
+safe_mode_password: StrongPass123!
+Administrator_pass: StrongPass123!
+admin_pass: StrongPass123!
+bob_pass: StrongPass123!
+alice_pass: StrongPass123!
+vagrant_user: vagrant
+vagrant_pass: vagrant
+
+# User accounts
+domain_admin_user: Administrator
+domain_admin_user_fqn: "Administrator@frostylabs.local"
+admin_user: admin
+bob_user: bob
+alice_user: alice
+
+# Active Directory Organizational Units
+users_ou: cn=Users,dc=FROSTYLABS,dc=local
+users_ou_lower: cn=Users,dc=frostylabs,dc=local
+base_ou: DC=frostylabs,DC=local
+
+# AD Groups
+ad_groups:
+  - allTeams
+  - DBAOracle
+  - DBASQLServer
+  - DBAMongo
+  - DBARedis
+  - DBAEnterprise
+  - JustATestDemo
+
+# Windows paths
+win_dns_log_path: C:\dns_log.txt
+win_shares_path: C:\shares\public
+win_domain_log_path: C:\ansible_win_domain_controller.txt
+
+# Chocolatey version
+chocolatey_version: 1.4.0
+
+# LAMP server configuration
+web_domain_name: frostylabs
+web_root_path: /var/www/frostylabs
+web_user: www-data
+web_group: www-data
+apache_sites_available: /etc/apache2/sites-available
+
+# Linux server configuration
+timezone: Europe/Rome
+apt_repository: multiverse

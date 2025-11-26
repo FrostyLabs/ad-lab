@@ -1,0 +1,4 @@
+---
+# Variables specific to the Windows 10 Client (win-client01)
+
+client_hostname: win-client01

@@ -1,50 +1,55 @@
-- name: Install lamp components
+- name: "[{{ linux_srv01_hostname }}] Install LAMP stack"
   apt:
     name: ['apache2', 'mysql-server', 'php', 'libapache2-mod-php', 'php-mysql']
     state: present
+    update_cache: yes
   become: yes
 
-#- name: Run mysql_secure_installation
-
-- name: Create virtual host
-  file:
-    path: /var/www/cyberloop
-    state: directory
-    owner: cyberloop
-    group: cyberloop
-  become: yes
-
-- name: Copy configuration file into apache's sites-available directory
-  copy:
-    src: cyberloop.conf
-    dest: /etc/apache2/sites-available/cyberloop.conf
-  become: yes
-
-- name: Enable new virtual host
-  shell: a2ensite cyberloop
-  become: yes
-  register: apache1
-
-- name: Disable default apache website
-  shell: a2dissite 000-default
-  become: yes
-  register: apache2
-
-- name: Reload apache service if needed
+- name: "[{{ linux_srv01_hostname }}] Ensure Apache is running"
   systemd:
     name: apache2
-    state: reloaded
-  when: (apache1.changed) or (apache2.changed)
-  become: yes
-  
-- name: Copy index.html for the website
-  copy:
-    src: index.html
-    dest: /var/www/cyberloop/index.html
+    state: started
+    enabled: yes
   become: yes
 
-- name: Copy info.php for the website
+- name: "[{{ linux_srv01_hostname }}] Create virtual host directory"
+  file:
+    path: "{{ web_root_path }}"
+    state: directory
+    owner: "{{ web_user }}"
+    group: "{{ web_group }}"
+    mode: '0755'
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Configure Apache virtual host"
+  template:
+    src: vhost.conf.j2
+    dest: "{{ apache_sites_available }}/{{ web_domain_name }}.conf"
+  register: vhost_config
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Enable virtual host"
+  command: a2ensite {{ web_domain_name }}
+  args:
+    creates: /etc/apache2/sites-enabled/{{ web_domain_name }}.conf
+  notify: reload apache
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Disable default site"
+  command: a2dissite 000-default
+  args:
+    removes: /etc/apache2/sites-enabled/000-default.conf
+  notify: reload apache
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Deploy index.html"
+  copy:
+    src: index.html
+    dest: "{{ web_root_path }}/index.html"
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Deploy info.php"
   copy:
     src: info.php
-    dest: /var/www/cyberloop/info.php
+    dest: "{{ web_root_path }}/info.php"
   become: yes

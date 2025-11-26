@@ -1,34 +1,34 @@
-- name: Change the hostname to member-server
+- name: "[{{ srv_hostname }}] Set hostname"
   win_hostname:
-    name: member-server
+    name: "{{ srv_hostname }}"
   register: win_hostname
 
-- name: Reboot if needed
+- name: "[{{ srv_hostname }}] Reboot after hostname change"
   win_reboot:
   when: win_hostname.reboot_required
 
-- name: Set configure dns
+- name: "[{{ srv_hostname }}] Configure DNS client"
   win_dns_client:
     adapter_names: '*'
     ipv4_addresses:
-    - 192.168.56.10
-    log_path: C:\dns_log.txt
+    - "{{ dc_ip }}"
+    log_path: "{{ win_dns_log_path }}"
 
-- name: Verify File Server Role is installed.
+- name: "[{{ srv_hostname }}] Install File Server role"
   win_feature:
     name: File-Services, FS-FileServer
     state: present
     include_management_tools: True
 
-- name: Install IIS Management Features
+- name: "[{{ srv_hostname }}] Install IIS management features"
   win_feature:
-    name: Web-Mgmt-Tools, 
-          Web-Mgmt-Console, 
-          Web-Scripting-Tools, 
+    name: Web-Mgmt-Tools,
+          Web-Mgmt-Console,
+          Web-Scripting-Tools,
           Web-Mgmt-Service
     state: present
 
-- name: Add SYSTEM allow rights to machine keys (required for installation of IIS 6 components)
+- name: "[{{ srv_hostname }}] Configure SYSTEM rights on machine keys"
   win_acl:
     path: C:\ProgramData\Microsoft\Crypto\RSA\MachineKeys\
     user: SYSTEM
@@ -38,7 +38,7 @@
     inherit: ContainerInherit, ObjectInherit
     propagation: 'InheritOnly'
 
-- name: Install IIS 6 Compatibility Features 
+- name: "[{{ srv_hostname }}] Install IIS 6 compatibility features"
   win_feature:
     name: Web-Mgmt-Compat,
           Web-Metabase,
@@ -47,28 +47,28 @@
           Web-WMI
     state: present
 
-- name: Ensure directory structure for public share exists
+- name: "[{{ srv_hostname }}] Create public share directory"
   win_file:
-    path: C:\shares\public
+    path: "{{ win_shares_path }}"
     state: directory
 
-- name: Ensure public share exists
+- name: "[{{ srv_hostname }}] Create public share"
   win_share:
     name: public
     description: Basic RW share for all domain users
-    path: C:\shares\public
+    path: "{{ win_shares_path }}"
     list: yes
     full: Administrators
     change: Users
 
-- name: Add member server to cyberloop.local
-  win_domain_membership:
-    dns_domain_name: cyberloop.local
-    domain_admin_user: Administrator@cyberloop.local
-    domain_admin_password: StrongPass123!
+- name: "[{{ srv_hostname }}] Join domain {{ domain }}"
+  microsoft.ad.membership:
+    dns_domain_name: "{{ domain }}"
+    domain_admin_user: "{{ domain_admin_user_fqn }}"
+    domain_admin_password: "{{ Administrator_pass }}"
     state: domain
   register: domain_state
 
-- name: Reboot if needed
+- name: "[{{ srv_hostname }}] Reboot after domain join"
   win_reboot:
   when: domain_state.reboot_required

@@ -1,8 +1,8 @@
 <VirtualHost *:80>
-    ServerName cyberloop
-    ServerAlias www.cyberloop
+    ServerName {{ web_domain_name }}
+    ServerAlias www.{{ web_domain_name }}
     ServerAdmin webmaster@localhost
-    DocumentRoot /var/www/cyberloop
+    DocumentRoot {{ web_root_path }}
     ErrorLog ${APACHE_LOG_DIR}/error.log
     CustomLog ${APACHE_LOG_DIR}/access.log combined
 </VirtualHost>

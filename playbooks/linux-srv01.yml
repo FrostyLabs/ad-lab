@@ -1,0 +1,9 @@
+---
+- name: Linux Server configuration
+  hosts: linux_srv01
+  gather_facts: yes
+  become: yes
+  roles:
+    - linux_server_basic
+    - linux_server_domain
+    - lamp_server

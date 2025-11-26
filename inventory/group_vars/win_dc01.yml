@@ -1,0 +1,4 @@
+---
+# Variables specific to the Domain Controller (win-dc01)
+
+dc_hostname: win-dc01

@@ -1,0 +1,4 @@
+---
+# Variables specific to the Linux Server
+
+linux_srv01_hostname: linux-srv01

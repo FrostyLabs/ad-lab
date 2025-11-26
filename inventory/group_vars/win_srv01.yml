@@ -1,0 +1,4 @@
+---
+# Variables specific to the Member Server (win-srv01)
+
+srv_hostname: win-srv01

@@ -1,220 +1,105 @@
-kkolk.mssql - sourced 99.9999999% from https://github.com/kkolk/mssql
-=========
-Description
------------
-This ansible role will install a SQL Server Developer Edition 2017 instance on supported Windows platforms.  This role can be adjusted to install any supported SQL server installation.  I've used variants of it to install SQL Server 2012/2014. 
+# MSSQL Role
 
-This role also handles local firewall changes as required and demonstrates how to make configuration adjustments to the SQL instance.
+## Description
 
-Using default values it's designed to work as an role that can be added to the member server in the windows test environment I've laid out through a series of posts on http://frostbyte.us/configure-an-ansible-testing-system-on-windows-part-1/ 
+This role installs and configures Microsoft SQL Server 2017 Developer Edition on Windows servers within an Active Directory domain environment. It handles the complete setup from prerequisites through to SQL Server Management Studio installation.
 
-Requirements
-------------
+The role is adapted from [kkolk/mssql](https://github.com/kkolk/mssql) and has been customized for this AD lab environment.
 
-Powershell 5.0 / WMF 5.1 should be installed on target host.
+## What This Role Does
 
-You can do this in two steps with:
+1. **Prerequisites Installation**
+   - Installs .NET Framework (Core, 3.5, and 4.5+ features)
+   - Installs .NET Framework 4.8
+   - Installs NuGet provider and required PowerShell modules (SQLServerDsc, StorageDsc, dbatools, xNetworking)
+   - Installs Windows Process Activation Service
+
+2. **Service Account Creation**
+   - Creates SQL Service account in Active Directory
+   - Creates SQL Agent Service account in Active Directory
+   - Delegates these tasks to the domain controller
+
+3. **SQL Server Installation**
+   - Downloads SQL Server 2017 Developer Edition installation media
+   - Extracts installation files
+   - Installs SQL Server with configured features using PowerShell DSC
+   - Configures database and log file paths
+
+4. **Network Configuration**
+   - Enables TCP/IP protocol for SQL Server
+   - Configures SQL Server to listen on specified port (default: 1433)
+   - Configures Windows Firewall rules for Database Engine and SQL Browser
+
+5. **Performance Tuning**
+   - Sets maximum and minimum server memory allocation
+   - Configures max degree of parallelism
+
+6. **Management Tools**
+   - Installs Chocolatey package manager
+   - Installs SQL Server Management Studio (SSMS) via Chocolatey
+
+7. **Database Setup**
+   - Copies database creation scripts to the server
+
+## Requirements
+
+- PowerShell 5.0 / WMF 5.1 on target host
+- Windows Server (2012 R2 or later recommended)
+- Active Directory domain environment
+- Domain controller accessible for service account creation
+
+## Key Variables
+
+See `defaults/main.yml` for all configurable options. Key variables include:
 
 ```yaml
-# The latest powershell gives us more flexiablity to use Windows DSC items
-- name: Windows | Install Powershell 5.0
-  win_chocolatey:
-    name: "powershell"
-  register: check_powershell5
-  become: yes
-  become_user: Administrator
-  become_method: runas
-  retries: 3
-  delay: 10
-
-# Powershell 5.0 requires a reboot, so lets get it done if it's needed.
-- name: Windows | Reboot to complete Powershell 5.0 install
-  win_reboot:
-    # We will give windows a full hour to reboot.
-    reboot_timeout: 3600
-    post_reboot_delay: 60
-  when: check_powershell5.changed
-```
-
-Role Variables
---------------
-
-
-```yaml
-# installation files source 
-mssql_installation_source: https://go.microsoft.com/fwlink/?linkid=853016
-
-# Path to download installation media to
-mssql_installation_path: C:\SQLInstall
-
-# Temporary path to store downloader
-mssql_temp_download_path: C:\tmp
-
-# instance details
+# SQL Server instance configuration
 mssql_instance_name: Test
-mssql_drive: C
-mssql_userdbvol_name: Userdbvol01
 mssql_port: 1433
-
-### Memory Configuration ###
-# memory in MB
-# values must be divisible by 512
-
-# Max memory to allocate to this instance
-mssql_max_server_memory: 1024
-
-# Memory to reserve to the OS
-mssql_os_memory_reservation: 512
-
-# Total system memory 
-mssql_total_system_memory: "{{ mssql_max_server_memory + mssql_os_memory_reservation }}"
-
-# Suppress reboots that may occur during SQL Setup tasks
-# you will want to set this to True if working on a sensitive system:
-mssql_suppress_reboot: False
-
-### Service Accounts ###
-
-# SQL Service Account
-# regex statements used in some steps expect the format of CONTOSO\
-# do not use @CONTOSO.com for these accounts as SQL install will fail
-mssql_sqlsvc_account: CONTOSO\sql_svc
-mssql_sqlsvc_account_pass: MyPlainTextPassWord01
-
-# SQL Agent Service Account
-mssql_agentsvc_account: CONTOSO\sql_agt
-mssql_agentsvc_account_pass: MyPlainTextPassWord01
-
-# SQL Analysis Services Account
-mssql_assvc_account: "{{ mssql_sqlsvc_account }}"
-mssql_assvc_account_pass: "{{ mssql_sqlsvc_account_pass }}"
-
-### File and Folder Paths ###
-
-# volume paths
-mssql_userdbvol_path: "{{ mssql_drive }}:\\{{ mssql_userdbvol_name }}"
-mssql_db_accesspath: "{{ mssql_userdbvol_path }}\\DatabaseFiles"
-mssql_logs_accesspath: "{{ mssql_userdbvol_path }}\\DatabaseLogs"
-
-# shared files paths
-mssql_installshared_path: C:\Program Files\Microsoft SQL Server
-mssql_installsharedwow_path: C:\Program Files (x86)\Microsoft SQL Server
-
-# instance path
-mssql_instance_path: "C:\\Program Files\\Microsoft SQL Server\\{{ mssql_instance_name }}"
-
-# SQL DB and Logging Paths
-mssql_sqlinstalldata_path: "{{ mssql_db_accesspath }}\\{{mssql_instance_name }}"
-mssql_sqluserdata_path: "{{ mssql_db_accesspath }}\\{{mssql_instance_name }}"
-mssql_sqluserlog_path: "{{ mssql_logs_accesspath }}\\{{mssql_instance_name }}"
-mssql_sqltempDB_path: "C:\\TempDBFiles\\Data\\{{mssql_instance_name }}"
-mssql_sqltempDBlog_path: "C:\\TempDBFiles\\Log\\{{mssql_instance_name }}"
-
-# security mode - SQL indicates mixed-mode auth, while Windows indicates Windows Auth.
-mssql_security_mode: sql
-
-# SA user password, if security mode is set to 'SQL'
-# by default for testing we'll be lazy and use the service account password,
-# but on live systems you should use something else:
-mssql_sa_password: "{{ mssql_sqlsvc_account_pass }}"
-
-# features - Comma seperated list of features to be installed
-#
-# example:   
-# mssql_features: SQLENGINE,AS
-# 
-# The list of features below is untested, some may not work with DSC
-#
-# Features list: 
-#
-# Database engine = SQLENGINE
-# Replication = REPLICATION
-# Full-text and semantic extractions for search = FULLTEXT
-# Data quality services = DQ
-# Analysis services = AS
-# Reporting services – native = RS
-# Reporting services – sharepoint = RS_SHP
-# Reporting services add-in for sharepoint products = RS_SHPWFE
-# Data quality client = DQC
-# SQL Server data tools = BIDS
-# Client tools connectivity = CONN
-# Integration services = IS
-# Client tools backwards compatibility = BC
-# Client tools SDK = SDK
-# Documentation components = BOL
-# Management tools – basic = SSMS
-# Management tools – advanced = ADV_SSMS
-# Distributed replay controller = DREPLAY_CTLR
-# Distributed replay client = DREPLAY_CLT
-# SQL client connectivity SDK = SNAC_SDK
-# Master data services = MDS
-# ADVANCEDANALYTICS 	Installs R Services, requires the database engine. Unattended installations require /IACCEPTROPENLICENSETERMS parameter.   
-
 mssql_features: SQLENGINE,FULLTEXT,CONN
 
-# Collation
-mssql_collation: SQL_Latin1_General_CP1_CI_AS
-
-# Browser service startup mode
-# Specifies the startup mode for SQL Server Browser service. { Automatic | Disabled | 'Manual' }
-mssql_browsersvc_mode: Automatic
-
-# Default Account Access
-# Ansible_Admin must be included so that the playbook can make configuration changes post install
-mssql_sysadmin_accounts: 
-  - CONTOSO\Domain Admins
-  - CONTOSO\Administrator
-
-# Analysis Services Admins (if installed)
-mssql_asadmin_accounts: "{{ mssql_sysadmin_accounts }}"
-
-# Tuning options
-
-# When an instance of SQL Server runs on a computer that has more than one microprocessor or CPU, 
-# it detects the best degree of parallelism, that is, the number of processors employed to run a single statement, 
-# for each parallel plan execution. You can use the max degree of parallelism option to limit the number of processors 
-# to use in parallel plan execution. 
-#
-# If the affinity mask option is not set to the default, it may restrict the number of processors available to 
-# SQL Server on symmetric multiprocessing (SMP) systems. 
-#
-# To enable the server to determine the maximum degree of parallelism, set this option to 0, the default value. 
-#
-# See: https://docs.microsoft.com/en-us/sql/database-engine/configure-windows/configure-the-max-degree-of-parallelism-server-configuration-option
-mssql_max_degree_of_parallelism: 0
-
-# Minimum memory to allocate to SQL
-#
-# Should remain 0 in most cases.
-#
-# see: Optimizing Server Performance Using Memory Configuration Options
-# https://technet.microsoft.com/en-us/library/ms177455(v=sql.105).aspx
-#
-# The min server memory server configuration option can be used to ensure that 
-# SQL Server does not release memory below the configured minimum server memory 
-# once that threshold is reached. This configuration option can be set to a specific value 
-# based on the size and activity of your SQL Server. If you choose to set this value, 
-# set it to some reasonable value to ensure that the operating system does not request too 
-# much memory from SQL Server, which can affect SQL Server performance.
+# Memory configuration (in MB)
+mssql_max_server_memory: 1024
 mssql_min_server_memory: 0
+
+# Service accounts (created in AD)
+mssql_sqlsvc_account: DOMAIN\sql_svc
+mssql_agentsvc_account: DOMAIN\sql_agt
+
+# Installation paths
+mssql_installation_path: C:\SQLInstall
+mssql_instance_path: C:\Program Files\Microsoft SQL Server\Test
 ```
 
-Example Playbook
-----------------
+## Example Playbook
 
-- name: SQL Server
-  hosts: sql_server
-  tags: mssql
-
+```yaml
+- name: Configure SQL Server
+  hosts: win_srv01
   roles:
-  - { role: kkolk.mssql }
+    - mssql
+```
 
-License
--------
+## Notes
+
+- Installation logs are located at: `C:\Program Files\Microsoft SQL Server\...\Setup Bootstrap\Log`
+- The role uses PowerShell DSC for SQL installation and configuration
+- SSMS installation may take significant time and will poll every 2 minutes for completion status
+- Service accounts are created with passwords that never expire
+
+## Troubleshooting
+
+If SQL Server installation fails:
+1. Check setup logs in `C:\Program Files\Microsoft SQL Server\...\Setup Bootstrap\Log`
+2. Review DSC logs: https://docs.microsoft.com/en-us/powershell/dsc/troubleshooting
+3. Ensure service account credentials are correct
+4. Verify no pending reboots exist before installation
+
+## License
 
 BSD / MIT
 
-Author Information
-------------------
+## Author Information
 
-Kevin Kolk - http://www.frostbyte.us
+Original: Kevin Kolk - http://www.frostbyte.us
+Modified for AD lab environment

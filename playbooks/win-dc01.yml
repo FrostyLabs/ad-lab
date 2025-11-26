@@ -1,0 +1,7 @@
+---
+- name: frostylabs.local Domain Controller configuration
+  hosts: win_dc01
+  serial: 1
+  roles:
+    - common
+    - domain_controller

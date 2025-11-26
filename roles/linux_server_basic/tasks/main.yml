@@ -1,27 +1,36 @@
 # Adjust your timezone
-- name: Set timezone to Europe/Rome
+- name: "[{{ inventory_hostname }}] Set timezone"
   timezone:
-    name: Europe/Rome
+    name: "{{ timezone }}"
   become: yes
 
-- name: Add multiverse repository 
-  shell: apt-add-repository multiverse -y
+- name: "[{{ inventory_hostname }}] Set keyboard layout to Swiss German"
+  copy:
+    content: |
+      XKBMODEL="pc105"
+      XKBLAYOUT="ch"
+      XKBVARIANT="de_nodeadkeys"
+      XKBOPTIONS=""
+      BACKSPACE="guess"
+    dest: /etc/default/keyboard
+  become: yes
+
+- name: "[{{ inventory_hostname }}] Add multiverse repository"
+  shell: apt-add-repository {{ apt_repository }} -y
   args:
     executable: /bin/bash
   become: yes
 
-- name: Update and upgrade apt packages
+- name: "[{{ inventory_hostname }}] Update and upgrade packages"
   apt:
     upgrade: "yes"
     update_cache: yes
   become: yes
 
-- name: Install important tools
-  apt: 
-    name: ['krb5-user', 'chrony', 'python3-pip', 'realmd', 'sssd', 'sssd-tools', 'libnss-sss', 'libpam-sss', 'adcli', 'samba-common-bin', 'oddjob', 'oddjob-mkhomedir', 'packagekit']
+- name: "[{{ inventory_hostname }}] Install domain tools"
+  apt:
+    name: ['krb5-user', 'chrony', 'realmd', 'sssd', 'sssd-tools', 'libnss-sss', 'libpam-sss', 'adcli', 'samba-common-bin', 'oddjob', 'oddjob-mkhomedir', 'packagekit']
     state: present
-  become: yes
-
-- pip:
-    name: pexpect
+  environment:
+    DEBIAN_FRONTEND: noninteractive
   become: yes

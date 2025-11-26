@@ -1,0 +1,28 @@
+[win_dc01]
+dc01 ansible_host="{{ dc_ip }}"
+
+[win_srv01]
+srv01 ansible_host="{{ srv01_ip }}"
+
+[win_srv02]
+srv02 ansible_host="{{ srv02_ip }}"
+
+[win_client01]
+client01 ansible_host="{{ client_ip }}"
+
+[linux_srv01]
+linux-srv01 ansible_host="{{ linux_srv01_ip }}"
+
+# Group all Windows hosts together
+[windows:children]
+win_dc01
+win_srv01
+win_srv02
+win_client01
+
+# Common variables for all Windows hosts
+[windows:vars]
+ansible_user={{ vagrant_user }}
+ansible_password={{ vagrant_pass }}
+ansible_connection=winrm
+ansible_winrm_server_cert_validation=ignore

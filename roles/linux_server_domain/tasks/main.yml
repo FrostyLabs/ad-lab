@@ -1,36 +1,49 @@
-- name: Change file /etc/systemd/resolved.conf
+- name: "[{{ linux_srv01_hostname }}] Configure DNS resolver"
   template:
     src: resolved.conf.j2
     dest: /etc/systemd/resolved.conf
   register: file1
   become: yes
 
-- name: Change hostname
-  lineinfile:
-    path: /etc/hostname
-    regexp: "localhost"
-    line: "ubuntu-domain"
+- name: "[{{ linux_srv01_hostname }}] Restart systemd-resolved"
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  when: file1.changed
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Set hostname"
+  hostname:
+    name: "{{ linux_srv01_hostname }}"
   register: file2
   become: yes
 
-- name: Reboot needed
+- name: "[{{ linux_srv01_hostname }}] Update /etc/hosts with hostname"
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1 {{ linux_srv01_hostname }}.{{ domain }} {{ linux_srv01_hostname }}"
+  become: yes
+
+- name: "[{{ linux_srv01_hostname }}] Reboot after configuration"
   reboot:
   when: (file1.changed) or (file2.changed)
   become: yes
 
-- name: Check if you have already joined the domain
+- name: "[{{ linux_srv01_hostname }}] Check domain membership"
   shell: realm list
   register: response
 
-- name: Join cyberloop.local domain
-  expect:
-    command: "realm join {{ domain }}"
-    responses:
-      "Password for Administrator:": "{{ Administrator_pass }}"
-  when: '"cyberloop.local" not in response.stdout_lines' 
+- name: "[{{ linux_srv01_hostname }}] Join domain {{ domain }}"
+  shell: echo "{{ Administrator_pass }}" | realm join --user={{ domain_admin_user }} {{ domain }}
+  when: domain not in response.stdout
   become: yes
+  register: realm_join_result
+  failed_when:
+    - realm_join_result.rc != 0
+    - "'Already joined' not in realm_join_result.stderr"
 
-- name: Modify /etc/pam.d/common-account to create home dir automatically when logging in with AD users
+- name: "[{{ linux_srv01_hostname }}] Configure PAM for home directory creation"
   copy:
     src: common-account
     dest: /etc/pam.d/common-account
