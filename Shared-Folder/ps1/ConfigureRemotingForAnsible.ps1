@@ -1,5 +1,9 @@
 #Requires -Version 3.0
 
+# Source - Ansible Documentation
+# https://raw.githubusercontent.com/ansible/ansible-documentation/refs/heads/devel/examples/scripts/ConfigureRemotingForAnsible.ps1
+# -----------------------------------------------------------
+#
 # Configure a Windows host for remote management with Ansible
 # -----------------------------------------------------------
 #
