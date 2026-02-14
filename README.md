@@ -1,6 +1,6 @@
 # Active Directory Lab Environment 🏢
 
-A fully (..almost) automated Active Directory lab environment using Vagrant and Ansible. This lab creates a complete Windows domain environment with a domain controller, member servers (including MS SQL Server), a Windows 10 client, and a Linux server integrated with the Active Directory domain.
+A fully automated Active Directory lab environment using Vagrant and Ansible. This lab creates a complete Windows domain environment with a domain controller, member servers (including MS SQL Server), a Windows 10 client, and a Linux server integrated with the Active Directory domain.
 
 ---
 
@@ -40,22 +40,22 @@ This lab environment provisions and configures:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    frostylabs.local Domain                  │
-│                   Network: 192.168.139.0/24                 │
+│                    frostylabs.local Domain                   │
+│                   Network: 192.168.139.0/24                  │
 ├─────────────────────────────────────────────────────────────┤
-│                                                             │
+│                                                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
 │  │  win-dc01    │  │ win-srv01    │  │ win-srv02    │       │
 │  │  DC + DNS    │  │ Member + SQL │  │ Member + IIS │       │
 │  │ .139.10      │  │ .139.11      │  │ .139.12      │       │
 │  └──────────────┘  └──────────────┘  └──────────────┘       │
-│                                                             │
+│                                                               │
 │  ┌──────────────┐  ┌──────────────┐                         │
 │  │win-client01  │  │ linux-srv01  │                         │
 │  │ Workstation  │  │ LAMP + SSSD  │                         │
 │  │ .139.13      │  │ .139.14      │                         │
 │  └──────────────┘  └──────────────┘                         │
-│                                                             │
+│                                                               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -112,7 +112,7 @@ pip install pywinrm
    vagrant up win-srv01
    vagrant up win-srv02
    vagrant up win-client01
-   vagrant up linsrv1
+   vagrant up linux-srv01
    ```
 
 4. **Configure network (if needed)**:
@@ -141,7 +141,7 @@ pip install pywinrm
 ```ruby
 config.vm.provider "vmware_desktop" do |v|
   v.gui = true          # Show VM GUI
-  v.memory = 4096       # 4GB RAM per VM
+  v.memory = 3072       # 3GB RAM per VM
   v.cpus = 2            # 2 CPUs per VM
 end
 ```
@@ -773,9 +773,6 @@ winrm quickconfig
 - Ensure the ConfigureRemotingForAnsible.ps1 script ran during provisioning
 - Verify time sync between Ansible controller and Windows hosts
 
-**Error with an individual the playbook**:
-- Run them singularly with `ansible playbooks/[host causing issues].yml` and go from there
-
 **Module not found**:
 ```bash
 # Install required collections
@@ -879,6 +876,9 @@ vagrant box remove bento/ubuntu-24.04
 
 ---
 
+## License
+
+This project is provided as-is for educational and testing purposes.
 
 ## Contributing
 

@@ -1,7 +1,7 @@
 ---
-- import_playbook: playbooks/win-dc01.yml
+#- import_playbook: playbooks/win-dc01.yml
 - import_playbook: playbooks/win-srv01.yml
-- import_playbook: playbooks/win-srv02.yml
-- import_playbook: playbooks/win-client01.yml
+#- import_playbook: playbooks/win-srv02.yml
+#- import_playbook: playbooks/win-client01.yml
 - import_playbook: playbooks/linux-srv01.yml
 ...
